@@ -5,41 +5,46 @@
 
 import sys
 import glob
-import serial
 
 import Python_Coloring
 from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from pathlib import Path
+from io import StringIO
 
-def serial_ports():
-    """ Lists serial port names
-        :raises EnvironmentError:
-            On unsupported or unknown platforms
-        :returns:
-            A list of the serial ports available on the system
-    """
-    if sys.platform.startswith('win'):
-        ports = ['COM%s' % (i + 1) for i in range(256)]
-    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        # this excludes your current terminal "/dev/tty"
-        ports = glob.glob('/dev/tty[A-Za-z]*')
-    elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
-    else:
-        raise EnvironmentError('Unsupported platform')
+from IPython.utils.capture import capture_output
 
-    result = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-        except (OSError, serial.SerialException):
-            pass
-    return result
+
+#############  commented as the feature is not implemented 
+
+
+#def serial_ports():
+#    """ Lists serial port names
+#        :raises EnvironmentError:
+#            On unsupported or unknown platforms
+#        :returns:
+#            A list of the serial ports available on the system
+#    """
+#    if sys.platform.startswith('win'):
+#        ports = ['COM%s' % (i + 1) for i in range(256)]
+#    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+#        # this excludes your current terminal "/dev/tty"
+#        ports = glob.glob('/dev/tty[A-Za-z]*')
+#    elif sys.platform.startswith('darwin'):
+#        ports = glob.glob('/dev/tty.*')
+#    else:
+#        raise EnvironmentError('Unsupported platform')
+#
+#    result = []
+#    for port in ports:
+#        try:
+#            s = serial.Serial(port)
+#            s.close()
+#            result.append(port)
+#        except (OSError, serial.SerialException):
+#            pass
+#    return result
 
 
 #
@@ -69,7 +74,6 @@ class Signal(QObject):
 # Making text editor as A global variable (to solve the issue of being local to (self) in widget class)
 text = QTextEdit
 text2 = QTextEdit
-
 #
 #
 #
@@ -83,7 +87,7 @@ text2 = QTextEdit
 # this class is made to connect the QTab with the necessary layouts
 class text_widget(QWidget):
     def __init__(self):
-        super().__init__()
+        super(text_widget,self).__init__()
         self.itUI()
     def itUI(self):
         global text
@@ -115,7 +119,7 @@ class text_widget(QWidget):
 class Widget(QWidget):
 
     def __init__(self):
-        super().__init__()
+        super(Widget,self).__init__()
         self.initUI()
 
     def initUI(self):
@@ -123,7 +127,7 @@ class Widget(QWidget):
         # This widget is responsible of making Tab in IDE which makes the Text editor looks nice
         tab = QTabWidget()
         tx = text_widget()
-        tab.addTab(tx, "Tab"+"1")
+        tab.addTab(tx, "First Line:parameters comma seperated")
 
         # second editor in which the error messeges and succeeded connections will be shown
         global text2
@@ -175,8 +179,15 @@ class Widget(QWidget):
         # I defined a new splitter to seperate between the upper and lower sides of the window
         V_splitter = QSplitter(Qt.Vertical)
         V_splitter.addWidget(H_splitter)
-        V_splitter.addWidget(text2)
+        
+         
+#outputLabel
+        labelOutput=QLabel(self)
+        labelOutput.setText("Output")
+        V_splitter.addWidget(labelOutput)
 
+
+        V_splitter.addWidget(text2)
         Final_Layout = QHBoxLayout(self)
         Final_Layout.addWidget(V_splitter)
 
@@ -238,7 +249,7 @@ def Openning(s):
 #
 class UI(QMainWindow):
     def __init__(self):
-        super().__init__()
+        super(UI,self).__init__()
         self.intUI()
 
     def intUI(self):
@@ -266,14 +277,14 @@ class UI(QMainWindow):
         # copyrights of serial_ports() function goes back to a guy from stackoverflow(whome I can't remember his name), so thank you (unknown)
         Port_Action = QMenu('port', self)
 
-        res = serial_ports()
-
-        for i in range(len(res)):
-            s = res[i]
-            Port_Action.addAction(s, self.PortClicked)
-
-        # adding the menu which I made to the original (Port menu)
-        Port.addMenu(Port_Action)
+#        res = serial_ports()
+#
+#        for i in range(len(res)):
+#            s = res[i]
+#            Port_Action.addAction(s, self.PortClicked)
+#
+#        # adding the menu which I made to the original (Port menu)
+#        Port.addMenu(Port_Action)
 
 #        Port_Action.triggered.connect(self.Port)
 #        Port.addAction(Port_Action)
@@ -313,17 +324,54 @@ class UI(QMainWindow):
 
     ###########################        Start OF the Functions          ##################
     def Run(self):
-        if self.port_flag == 0:
-            mytext = text.toPlainText()
-        #
-        ##### Compiler Part
-        #
-#            ide.create_file(mytext)
-#            ide.upload_file(self.portNo)
-            text2.append("Sorry, there is no attached compiler.")
+#removed the compiler part
+        
+#        if self.port_flag == 0:
+#            mytext = text.toPlainText()
+#        #
+#        ##### Compiler Part
+#        #
+##            ide.create_file(mytext)
+##            ide.upload_file(self.portNo)
+#            text2.append("Sorry, there is no attached compiler.")
+#
+#        else:
+#            text2.append("Please Select Your Port Number First")
 
-        else:
-            text2.append("Please Select Your Port Number First")
+#parsing the text and executing the code
+    
+#1) extracting the params line
+        codeText=text.toPlainText()
+        paramsValue=codeText[:codeText.find('def')]
+
+
+#2) extracting the function definition
+        funcStart=codeText.find('def ')
+        funcNameEnd=codeText.find('(', funcStart)
+        funcName=codeText[funcStart+4:funcNameEnd]
+
+#3) definning the parameters    
+        paramsName=codeText[funcNameEnd+1:codeText.find(')', funcNameEnd)]
+        paramsNameList=paramsName.split(',')
+        paramsValueList=paramsValue.split(',')
+        
+        paramsDef=''
+        
+        for i, j in zip(paramsNameList,paramsValueList) :
+            paramsDef+=i+"="+j+"\n"
+            
+#4) the function itself
+        codeText=codeText[codeText.find(":")+1:]
+        
+#5) execute 
+        
+        with capture_output() as execute:
+            exec (paramsDef+codeText)
+
+        execute()
+        text2.append(execute.stdout)
+
+
 
 
     # this function is made to get which port was selected by the user
